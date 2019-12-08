@@ -1,5 +1,4 @@
 import { Types, Schema, SchemaTypeOpts } from 'mongoose';
-import { type } from 'os';
 
 // schema variables
 export type Id = '_id';
@@ -30,25 +29,30 @@ export type RequiredKeys<T> = {
     [K in keyof T]: T[K] extends Record<Required, true> ? K : never
 }[keyof T];
 
-type BaseTypeOptions =  Partial<
-    Record<Required, boolean> & Record<Select, boolean>
-> | StringConstructor
+type BaseTypes = StringConstructor
+    | NumberConstructor
     | BooleanConstructor
     | DateConstructor
     | Types.ObjectId
     | Types.Decimal128
+    | (typeof Buffer)
     | (typeof Schema.Types.Mixed);
 
-type TypeOptions = BaseTypeOptions | Array<BaseTypeOptions>;
+type BaseTypeOptions = Partial<
+    Record<Required, boolean> & Record<Select, boolean>
+>
+    | BaseTypes
+    | { type?: BaseTypes | BaseTypes[] };
+
+
+export type TypeOptions = BaseTypeOptions | Array<BaseTypeOptions>;
 
 // 提取type字段
 export type ExtractType<T> = T extends Record<Type, infer O> ? O : T;
 
 type _ConvertType<T> = T extends NumberConstructor ? number
     : T extends StringConstructor ? string
-    : T extends Array<StringConstructor> ? Array<string>
     : T extends BooleanConstructor ? boolean
-    : T extends Array<BooleanConstructor> ? Array<boolean>
     : T extends DateConstructor ? Date
     : T extends (typeof Buffer) ? Buffer
     : T extends (typeof Schema.Types.ObjectId) ? Types.ObjectId
@@ -56,14 +60,14 @@ type _ConvertType<T> = T extends NumberConstructor ? number
     : T extends (typeof Schema.Types.Mixed) ? any
     : T;
 
-export type ConvertType<T> =  T extends Array<infer O> ? Array<_ConvertType<O>> : _ConvertType<T>;
+export type ConvertType<T> = T extends Array<infer O> ? Array<_ConvertType<O>> : _ConvertType<T>;
 export type ConvertSchemaType<T> = ConvertType<ExtractType<T>>;
 
 // 转换keys
-export type ConvertSchema<T> = { 
+export type ConvertSchema<T> = {
     [K in OptionalKeys<T>]?: T[K] extends Array<infer O> ? Array<ConvertSchemaType<O>> : ConvertSchemaType<T[K]> }
     & { [K in RequiredKeys<T>]: T[K] extends Array<infer O> ? Array<ConvertSchemaType<O>> : ConvertSchemaType<T[K]> }
- 
-export function t<T extends {[k: string]: TypeOptions}>(schemaDefine: T): ConvertSchema<T> {
+
+export function t<T extends { [k: string]: TypeOptions }>(schemaDefine: T): ConvertSchema<T> {
     return schemaDefine as any;
 }
